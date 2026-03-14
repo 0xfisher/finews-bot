@@ -477,7 +477,7 @@ def flash_filter_news(articles: list[dict]) -> list[dict]:
 
 只过滤掉：纯娱乐、纯体育、生活方式、明显软文广告
 
-目标：保留约60-80条，宁可多保留也不要漏掉有价值的新闻。
+目标：保留至少50条，宁可多保留也绝对不能漏掉有价值的新闻。
 
 新闻列表：
 {titles_block}
