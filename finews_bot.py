@@ -268,27 +268,14 @@ def fetch_market_data() -> dict:
 
 
 def fetch_fear_greed() -> str:
-    """抓取 CNN 恐惧贪婪指数"""
     try:
         resp = requests.get(
-            "https://production.dataviz.cnn.io/index/fearandgreed/graphdata",
-            headers={"User-Agent": "Mozilla/5.0"},
+            "https://api.alternative.me/fng/?limit=1",
             timeout=8,
         )
-        score = resp.json()["fear_and_greed"]["score"]
-        rating = resp.json()["fear_and_greed"]["rating"]
-        score  = int(float(score))
-
-        if score <= 25:
-            emoji = "😱"
-        elif score <= 45:
-            emoji = "😨"
-        elif score <= 55:
-            emoji = "😐"
-        elif score <= 75:
-            emoji = "😏"
-        else:
-            emoji = "🤑"
+        data = resp.json()["data"][0]
+        score = int(data["value"])
+        label = data["value_classification"]
 
         label_map = {
             "Extreme Fear": "极度恐惧",
@@ -297,12 +284,16 @@ def fetch_fear_greed() -> str:
             "Greed": "贪婪",
             "Extreme Greed": "极度贪婪",
         }
-        label = label_map.get(rating, rating)
-        return f"{emoji} {score}/100（{label}）"
+        if score <= 25:   emoji = "😱"
+        elif score <= 45: emoji = "😨"
+        elif score <= 55: emoji = "😐"
+        elif score <= 75: emoji = "😏"
+        else:             emoji = "🤑"
+
+        return f"{emoji} {score}/100（{label_map.get(label, label)}）"
     except Exception as e:
         log.warning(f"恐惧贪婪指数抓取失败: {e}")
         return "数据获取失败"
-
 
 def fetch_bond_spread() -> str:
     """抓取美债10Y-2Y利差"""
