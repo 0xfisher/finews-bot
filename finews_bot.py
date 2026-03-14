@@ -129,9 +129,15 @@ log = logging.getLogger(__name__)
 # ════════════════════════════════════════════════════════
 
 def is_morning_run() -> bool:
-    """UTC 00:00 = 北京时间 08:00 为早报，其余为晚报"""
-    hour_utc = datetime.now(tz=timezone.utc).hour
-    return hour_utc < 6  # UTC 0-5 点 = 北京 8-13 点视为早报
+    """优先读取 RUN_MODE 环境变量，手动触发时按北京时间判断"""
+    mode = os.getenv("RUN_MODE", "")
+    if mode == "morning":
+        return True
+    if mode == "evening":
+        return False
+    # 手动触发时按北京时间：6-14点走早报
+    hour_bj = datetime.now(tz=TZ).hour
+    return 6 <= hour_bj < 14
 
 # ════════════════════════════════════════════════════════
 # ❹ RSS 抓取
@@ -448,6 +454,7 @@ SYSTEM_INSTRUCTION_PRO = (
     "3. 宁缺毋滥，如果新闻没有实质性宏观价值，请直接返回今日无核心异动信号。"
     "4. 输出格式要求: 不要多余空行，每层标题后直接接内容，全文紧凑，控制在2000字以内。"
     "5. 禁止输出**加粗**、---分隔线等Markdown符号，直接用纯文字输出。"
+    "6. 如有具体价格数据请标注，格式：标的名（当前价/涨跌幅）。"
 )
 
 
