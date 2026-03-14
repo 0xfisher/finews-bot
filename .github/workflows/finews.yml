@@ -25,7 +25,7 @@ jobs:
         env:
           GEMINI_API_KEY:  ${{ secrets.GEMINI_API_KEY }}
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-          RUN_MODE: ${{ github.event.schedule == '0 0 * * *' && 'morning' || 'evening' }}
+          RUN_MODE: ${{ github.event_name == 'schedule' && github.event.schedule == '0 0 * * *' && 'morning' || github.event_name == 'schedule' && 'evening' || 'morning' }}
         run: python finews_bot.py
 
       - name: 📤 上传分析报告
