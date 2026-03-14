@@ -129,15 +129,13 @@ log = logging.getLogger(__name__)
 # ════════════════════════════════════════════════════════
 
 def is_morning_run() -> bool:
-    """优先读取 RUN_MODE 环境变量，手动触发时按北京时间判断"""
     mode = os.getenv("RUN_MODE", "")
     if mode == "morning":
         return True
     if mode == "evening":
         return False
-    # 手动触发时按北京时间：6-14点走早报
-    hour_bj = datetime.now(tz=TZ).hour
-    return 6 <= hour_bj < 14
+    # 手动触发时默认走早报（方便测试）
+    return True
 
 # ════════════════════════════════════════════════════════
 # ❹ RSS 抓取
@@ -497,7 +495,7 @@ def flash_filter_news(articles: list[dict]) -> list[dict]:
     try:
         client   = genai.Client(api_key=GEMINI_API_KEY)
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-3-flash-preview",
             contents=prompt,
             config=types.GenerateContentConfig(
                 temperature=0.0,
