@@ -465,15 +465,19 @@ def flash_filter_news(articles: list[dict]) -> list[dict]:
 
 保留标准（满足任意一条即保留）：
 - 宏观经济、美联储、利率、通胀、就业数据相关
-- 科技行业、AI、芯片、半导体相关
-- 中国经济、港股、A股、人民币相关
-- 大宗商品（黄金、原油）相关
+- 科技行业、AI、芯片、半导体、云计算相关
+- 中国经济、港股、A股、人民币、贸易相关
+- 大宗商品（黄金、原油、铜）相关
 - 外汇市场相关
 - 加密货币市场相关
 - 地缘政治、贸易战、重大政策相关
 - 市场异动、资金流向、机构动态相关
+- 任何涉及以下公司的新闻：NVDA、AAPL、MSFT、TSLA、GOOGL、PLTR、AMD、Intel、台积电、三星、SK海力士、Micron
+- 期权市场、波动率、财报预期相关
 
-过滤掉：娱乐、体育、生活、软文广告、公司招聘、无关奖项
+只过滤掉：纯娱乐、纯体育、生活方式、明显软文广告
+
+目标：保留约60-80条，宁可多保留也不要漏掉有价值的新闻。
 
 新闻列表：
 {titles_block}
@@ -501,7 +505,11 @@ def flash_filter_news(articles: list[dict]) -> list[dict]:
 
         filtered = [a for i, a in enumerate(articles, 1) if i in indices]
         log.info(f"⚡ Flash 过滤完成：{len(articles)} → {len(filtered)} 条")
-        return filtered if filtered else articles[:60]  # 保底：过滤失败则取前60条
+        # 如果过滤后少于40条，说明过滤太严，直接返回前80条
+        if len(filtered) < 40:
+            log.warning(f"⚠️ 过滤结果过少（{len(filtered)}条），改用前80条原始新闻")
+            return articles[:80]
+        return filtered
 
     except Exception as e:
         log.warning(f"⚠️ Flash 过滤失败，使用原始新闻: {e}")
