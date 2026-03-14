@@ -523,7 +523,7 @@ def build_news_prompt(articles: list[dict], market_data: dict = None) -> str:
         for symbol, info in market_data.items():
             market_block += f"{symbol}({info['name']}): {info['price']} | {info['position']}\n"
 
-return f"""当前时间：{now_str}（北京时间）
+    return f"""当前时间：{now_str}（北京时间）
 
 【我的持仓标的】
 {POSITIONS_TEXT.strip()}
