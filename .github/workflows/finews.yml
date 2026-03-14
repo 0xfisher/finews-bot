@@ -1,0 +1,65 @@
+name: 财经新闻 AI 日报
+
+on:
+  schedule:
+    # 每天 08:00 和 20:00（北京时间 = UTC 00:00 和 12:00）
+    - cron: '0 0 * * *'   # 北京时间 08:00
+    - cron: '0 12 * * *'  # 北京时间 20:00
+  workflow_dispatch:       # 支持手动触发（在 Actions 页面点击 Run workflow）
+
+jobs:
+  run-finbot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 🐍 配置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 📦 安装依赖
+        run: pip install -r requirements.txt
+
+      # ── 跨次运行持久化已读记录 ──────────────────────
+      - name: 🔄 恢复已读缓存
+        uses: actions/cache@v4
+        with:
+          path: .news_seen.json
+          key: news-seen-cache-${{ github.ref }}
+          restore-keys: |
+            news-seen-cache-
+
+      # 将缓存文件放到脚本期望的位置（~/Downloads）
+      - name: 📂 准备缓存目录
+        run: |
+          mkdir -p ~/Downloads
+          if [ -f .news_seen.json ]; then
+            cp .news_seen.json ~/Downloads/.news_seen.json
+          fi
+
+      # ── 运行机器人 ───────────────────────────────────
+      - name: 🚀 运行财经新闻机器人
+        env:
+          GEMINI_API_KEY:   ${{ secrets.GEMINI_API_KEY }}
+          DISCORD_WEBHOOK:  ${{ secrets.DISCORD_WEBHOOK }}
+        run: python finews_bot.py
+
+      # ── 上传报告为 Artifact（可在 Actions 页面下载）──
+      - name: 📤 上传分析报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 财经日报-${{ github.run_number }}
+          path: ~/Downloads/财经新闻_*.txt
+          retention-days: 7
+
+      # ── 回写已读缓存 ─────────────────────────────────
+      - name: 💾 保存已读缓存
+        if: always()
+        run: |
+          if [ -f ~/Downloads/.news_seen.json ]; then
+            cp ~/Downloads/.news_seen.json .news_seen.json
+          fi
