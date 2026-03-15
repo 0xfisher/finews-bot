@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 财经新闻 AI 分析机器人 v5
-早上 08:00：完整决策简报（宏观日历+情绪+资金流+期权+新闻+持仓雷达）
+早上 08:00：完整决策简报（宏观日历+情绪+资金流+期权+新闻+关注雷达）
 晚上 20:00：新闻简报（四层分析）
 """
 
@@ -33,7 +33,7 @@ OUTPUT_PREFIX   = "财经新闻"
 FETCH_HOURS     = 12
 TZ              = ZoneInfo("Asia/Shanghai")
 
-# 持仓标的
+# 关注标的
 POSITIONS_TEXT = """
 美股科技：QQQ / NVDA / AAPL / MSFT / TSLA / GOOGL / PLTR / SOXL
 中国大盘：YINN（3x做多中国大盘）
@@ -44,7 +44,7 @@ POSITIONS_TEXT = """
 加密货币：BTC / ETH
 """
 
-# 持仓标的 ticker 映射（用于拉价格数据）
+# 关注标的 ticker 映射（用于拉价格数据）
 TICKERS = {
     "QQQ":    {"name": "纳指ETF",       "ticker": "QQQ"},
     "NVDA":   {"name": "英伟达",         "ticker": "NVDA"},
@@ -188,7 +188,7 @@ def fetch_articles() -> list[dict]:
 # ════════════════════════════════════════════════════════
 
 def fetch_market_data() -> dict:
-    """拉取所有持仓标的的价格、52周位置、财报日期、期权Put/Call"""
+    """拉取所有关注标的的价格、52周位置、财报日期、期权Put/Call"""
     log.info("📈 抓取市场数据...")
     data = {}
 
@@ -399,7 +399,7 @@ def build_macro_calendar() -> str:
     return "\n".join(lines) if lines else "未来7天无重大数据发布"
 
 # ════════════════════════════════════════════════════════
-# ❻ 构建持仓雷达表格
+# ❻ 构建关注雷达表格
 # ════════════════════════════════════════════════════════
 
 def build_radar_table(market_data: dict, ai_signals: dict) -> str:
@@ -441,7 +441,7 @@ SYSTEM_INSTRUCTION_PRO = (
     "要让一个普通人看得懂，但信息密度要高，每句话都要有用。"
     "内容要求："
     "1. 提取今日对市场有实质影响的核心信息，宏观和个股都要，不要只盯着美联储。"
-    "2. 长线视角：这条新闻对持仓的长期逻辑有没有影响？是加分还是减分？"
+    "2. 长线视角：这条新闻对关注的长期逻辑有没有影响？是加分还是减分？"
     "3. 短线视角：这条新闻有没有催生近期期权机会？比如财报前后、重大事件窗口。"
     "4. 内容要完整，不要因为追求简洁就删掉有价值的分析，宁可多说也不要漏掉。"
     "5. 如有具体价格数据请标注，格式：标的名（当前价/涨跌幅）。"
@@ -533,13 +533,13 @@ def build_news_prompt(articles: list[dict], market_data: dict = None) -> str:
 
     market_block = ""
     if market_data:
-        market_block = "\n【当前持仓价格快照】\n"
+        market_block = "\n【当前价格快照】\n"
         for symbol, info in market_data.items():
             market_block += f"{symbol}({info['name']}): {info['price']} | {info['position']}\n"
 
     return f"""当前时间：{now_str}（北京时间）
 
-【我的持仓标的】
+【我的关注】
 {POSITIONS_TEXT.strip()}
 {market_block}
 【今日精选财经新闻（{len(articles)} 条，已由AI预筛选）】
@@ -550,7 +550,7 @@ def build_news_prompt(articles: list[dict], market_data: dict = None) -> str:
 第一层：今天市场在讲什么故事
 （用2-3句话说清今天最重要的1-2个市场主题，要让外行人也听得懂）
 
-第二层：我的持仓怎么样了
+第二层：关注标的表现
 （对每个相关标的分两个角度分析：
 长线：这个消息对长期持有逻辑有没有影响
 短线：近期有没有期权博弈机会，比如催化剂事件、波动窗口
@@ -563,9 +563,9 @@ def build_news_prompt(articles: list[dict], market_data: dict = None) -> str:
 （只说一件，给出具体要看的指标、时间节点或价格位置）
 
 第五层：我目前没关注但值得看的机会和风险
-（从新闻里发现我持仓之外的：
+（从新闻里发现我关注之外的：
 1. 值得考虑的标的或板块，给具体名字和理由
-2. 我持仓里还没反映的潜在风险
+2. 我关注里还没反映的潜在风险
 3. 未来1-3个月可能影响我仓位的宏观趋势
 没有就直接说无）"""
 
@@ -734,7 +734,7 @@ def run_morning():
 {analysis}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 持仓雷达快照
+📊 关注雷达
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 {radar_table}
 """
@@ -742,7 +742,7 @@ def run_morning():
     # 7. 推送 Discord
     header = (
         f"# 🌅 财经早报  {now_label}  |  {len(articles)}条新闻\n"
-        f"> 🤖 Gemini 3.1 Pro · 宏观日历 + 情绪 + 资金流 + 持仓雷达\n"
+        f"> 🤖 Gemini 3.1 Pro · 宏观日历 + 情绪 + 资金流 + 标的追踪\n"
         f"{'━' * 40}"
     )
     send_discord(report, header)
