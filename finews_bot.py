@@ -188,14 +188,13 @@ def fetch_articles() -> list[dict]:
 # ════════════════════════════════════════════════════════
 
 def fetch_market_data() -> dict:
-    """拉取所有关注标的的价格、52周位置、财报日期、期权Put/Call"""
     log.info("📈 抓取市场数据...")
     data = {}
 
     for symbol, info in TICKERS.items():
         try:
-            tk   = yf.Ticker(info["ticker"])
-            hist = tk.history(period="1y")
+            tk        = yf.Ticker(info["ticker"])
+            hist      = tk.history(period="1y")
             fast_info = tk.fast_info
 
             if hist.empty:
@@ -206,7 +205,6 @@ def fetch_market_data() -> dict:
             low_52w  = hist["Close"].min()
             position = int((current - low_52w) / (high_52w - low_52w) * 100) if high_52w != low_52w else 50
 
-            # 位置描述
             if position <= 30:
                 pos_label = f"低位 {position}%"
             elif position <= 70:
@@ -214,7 +212,6 @@ def fetch_market_data() -> dict:
             else:
                 pos_label = f"高位 {position}%"
 
-            # 买入吸引力星级（基于52周位置反向打分）
             if position <= 20:
                 stars = "⭐⭐⭐⭐⭐"
             elif position <= 35:
@@ -226,13 +223,12 @@ def fetch_market_data() -> dict:
             else:
                 stars = "⭐"
 
-            # 财报日期
             try:
-                cal = tk.calendar
+                cal      = tk.calendar
                 earnings = cal.get("Earnings Date", [None])[0] if isinstance(cal, dict) else None
                 if earnings:
                     if hasattr(earnings, 'strftime'):
-                        days_to = (earnings.date() - datetime.now(tz=TZ).date()).days
+                        days_to      = (earnings.date() - datetime.now(tz=TZ).date()).days
                         earnings_str = f"{earnings.strftime('%m月%d日')}（{days_to}天后）"
                     else:
                         earnings_str = str(earnings)
@@ -241,7 +237,6 @@ def fetch_market_data() -> dict:
             except Exception:
                 earnings_str = "—"
 
-            # 价格格式化
             if current >= 1000:
                 price_str = f"${current:,.0f}"
             elif current >= 10:
@@ -269,47 +264,36 @@ def fetch_market_data() -> dict:
 
 def fetch_fear_greed() -> str:
     try:
-        resp = requests.get(
-            "https://api.alternative.me/fng/?limit=1",
-            timeout=8,
-        )
-        data = resp.json()["data"][0]
+        resp  = requests.get("https://api.alternative.me/fng/?limit=1", timeout=8)
+        data  = resp.json()["data"][0]
         score = int(data["value"])
         label = data["value_classification"]
-
         label_map = {
-            "Extreme Fear": "极度恐惧",
-            "Fear": "恐惧",
-            "Neutral": "中性",
-            "Greed": "贪婪",
-            "Extreme Greed": "极度贪婪",
+            "Extreme Fear": "极度恐惧", "Fear": "恐惧",
+            "Neutral": "中性", "Greed": "贪婪", "Extreme Greed": "极度贪婪",
         }
         if score <= 25:   emoji = "😱"
         elif score <= 45: emoji = "😨"
         elif score <= 55: emoji = "😐"
         elif score <= 75: emoji = "😏"
         else:             emoji = "🤑"
-
         return f"{emoji} {score}/100（{label_map.get(label, label)}）"
     except Exception as e:
         log.warning(f"恐惧贪婪指数抓取失败: {e}")
         return "数据获取失败"
 
+
 def fetch_bond_spread() -> str:
-    """抓取美债10Y-2Y利差"""
     try:
-        t10 = yf.Ticker("^TNX").fast_info.last_price
-        t2  = yf.Ticker("^IRX").fast_info.last_price
-        spread = round(t10 - t2 / 10, 2)  # IRX 是折算后的，除以10近似
+        t10    = yf.Ticker("^TNX").fast_info.last_price
+        t2     = yf.Ticker("^IRX").fast_info.last_price
+        spread = round(t10 - t2 / 10, 2)
         if spread > 0.5:
-            label = "正常（经济预期乐观）"
-            emoji = "🟢"
+            label, emoji = "正常（经济预期乐观）", "🟢"
         elif spread > 0:
-            label = "收窄（注意风险）"
-            emoji = "🟡"
+            label, emoji = "收窄（注意风险）", "🟡"
         else:
-            label = "倒挂（衰退信号）"
-            emoji = "🔴"
+            label, emoji = "倒挂（衰退信号）", "🔴"
         return f"{emoji} 10Y {t10:.2f}% | 利差 {spread:+.2f}% {label}"
     except Exception as e:
         log.warning(f"美债利差抓取失败: {e}")
@@ -317,17 +301,21 @@ def fetch_bond_spread() -> str:
 
 
 def fetch_etf_flows() -> str:
-    """抓取ETF近5日资金流向（用成交量变化近似）"""
-    lines = []
+    """抓取ETF近5日资金流向"""
+    lines = [
+        "```",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        f"{'标的':<10} {'现价':<12} {'近5日涨跌':<10} 资金信号",
+        "─────────────────────────────────────────────",
+    ]
     for symbol in ETF_FLOW_TICKERS:
         try:
-            hist = yf.Ticker(symbol).history(period="10d")
+            hist       = yf.Ticker(symbol).history(period="10d")
             if len(hist) < 5:
                 continue
             avg_vol    = hist["Volume"].iloc[:-5].mean()
             recent_vol = hist["Volume"].iloc[-5:].mean()
             ratio      = recent_vol / avg_vol if avg_vol > 0 else 1
-
             price      = hist["Close"].iloc[-1]
             price_chg  = (hist["Close"].iloc[-1] / hist["Close"].iloc[-5] - 1) * 100
 
@@ -340,26 +328,38 @@ def fetch_etf_flows() -> str:
             else:
                 flow = "🟡 正常波动"
 
-            lines.append(f"{symbol:<6} ${price:.2f}  近5日{price_chg:+.1f}%  {flow}")
+            price_str = f"${price:.2f}"
+            chg_str   = f"{price_chg:+.1f}%"
+            lines.append(f"{symbol:<10} {price_str:<12} {chg_str:<10} {flow}")
+            lines.append("")
         except Exception as e:
             log.warning(f"ETF流向 {symbol} 失败: {e}")
 
-    return "\n".join(lines) if lines else "数据获取失败"
+    lines += [
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        "```",
+    ]
+    return "\n".join(lines)
 
 
 def fetch_put_call() -> str:
     """抓取主要标的期权Put/Call比率"""
-    lines = []
+    lines = [
+        "```",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        f"{'标的':<10} {'P/C比率':<12} 市场情绪",
+        "─────────────────────────────────────────────",
+    ]
     for symbol in ["QQQ", "NVDA", "TSLA", "AAPL", "MSFT", "GOOGL", "PLTR", "SOXL"]:
         try:
-            tk   = yf.Ticker(symbol)
-            exps = tk.options
+            tk       = yf.Ticker(symbol)
+            exps     = tk.options
             if not exps:
                 continue
-            chain     = tk.option_chain(exps[0])
-            put_vol   = chain.puts["volume"].sum()
-            call_vol  = chain.calls["volume"].sum()
-            ratio     = put_vol / call_vol if call_vol > 0 else 1
+            chain    = tk.option_chain(exps[0])
+            put_vol  = chain.puts["volume"].sum()
+            call_vol = chain.calls["volume"].sum()
+            ratio    = put_vol / call_vol if call_vol > 0 else 1
 
             if ratio > 1.2:
                 sentiment = "🔴 偏悲观（看跌多）"
@@ -368,15 +368,20 @@ def fetch_put_call() -> str:
             else:
                 sentiment = "🟢 偏乐观（看涨多）"
 
-            lines.append(f"{symbol:<6} P/C={ratio:.2f}  {sentiment}")
+            ratio_str = f"P/C={ratio:.2f}"
+            lines.append(f"{symbol:<10} {ratio_str:<12} {sentiment}")
+            lines.append("")
         except Exception as e:
             log.warning(f"期权P/C {symbol} 失败: {e}")
 
-    return "\n".join(lines) if lines else "数据获取失败"
+    lines += [
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        "```",
+    ]
+    return "\n".join(lines)
 
 
 def build_macro_calendar() -> str:
-    """生成未来7天宏观数据日历"""
     today    = datetime.now(tz=TZ).date()
     end_date = today + timedelta(days=7)
     lines    = []
@@ -452,17 +457,12 @@ SYSTEM_INSTRUCTION_PRO = (
 
 
 def flash_filter_news(articles: list[dict]) -> list[dict]:
-    """
-    第一阶段：用 Flash 快速过滤无关新闻
-    250条 → 保留约 60-80 条真正有投资价值的
-    """
     if not articles:
         return []
 
     log.info(f"⚡ Flash 预过滤：{len(articles)} 条新闻...")
     time.sleep(5)
 
-    # 把所有新闻标题打包成一个列表送给 Flash
     titles_block = ""
     for i, a in enumerate(articles, 1):
         titles_block += f"{i}. [{a['source']}] {a['title']}\n"
@@ -501,8 +501,7 @@ def flash_filter_news(articles: list[dict]) -> list[dict]:
                 max_output_tokens=500,
             ),
         )
-        raw = response.text.strip()
-        # 解析编号列表
+        raw     = response.text.strip()
         indices = set()
         for part in re.split(r"[,\s]+", raw):
             part = part.strip()
@@ -511,7 +510,7 @@ def flash_filter_news(articles: list[dict]) -> list[dict]:
 
         filtered = [a for i, a in enumerate(articles, 1) if i in indices]
         log.info(f"⚡ Flash 过滤完成：{len(articles)} → {len(filtered)} 条")
-        # 如果过滤后少于40条，说明过滤太严，直接返回前80条
+
         if len(filtered) < 40:
             log.warning(f"⚠️ 过滤结果过少（{len(filtered)}条），改用前80条原始新闻")
             return articles[:80]
@@ -571,7 +570,6 @@ def build_news_prompt(articles: list[dict], market_data: dict = None) -> str:
 
 
 def extract_ai_signals(analysis_text: str) -> dict:
-    """从AI分析文本中提取每个标的的信号"""
     signals = {}
     for symbol in TICKERS.keys():
         sym_pos = analysis_text.upper().find(symbol.upper())
@@ -588,7 +586,6 @@ def extract_ai_signals(analysis_text: str) -> dict:
 
 
 def call_gemini_pro(prompt: str) -> str:
-    """第二阶段：Pro 深度分析（五层结构）"""
     log.info("🧠 Pro 深度分析...")
     time.sleep(15)
 
@@ -646,7 +643,7 @@ def _discord_send(text: str):
     resp = requests.post(DISCORD_WEBHOOK, json={"content": text}, timeout=10)
     if resp.status_code not in (200, 204):
         log.warning(f"Discord 返回 {resp.status_code}: {resp.text[:200]}")
-    time.sleep(0.5)  # 避免Discord限流
+    time.sleep(0.5)
 
 
 def _split_discord(text: str, max_len: int = 1900) -> list[str]:
@@ -680,32 +677,23 @@ def save_report(content: str, mode: str):
 # ════════════════════════════════════════════════════════
 
 def run_morning():
-    """早报：完整决策简报"""
     now_label = datetime.now(tz=TZ).strftime("%Y-%m-%d %H:%M")
     log.info("🌅 运行早报模式")
 
-    # 1. 抓取新闻
-    articles = fetch_articles()
-
-    # 2. 抓取市场数据
+    articles    = fetch_articles()
     market_data = fetch_market_data()
-
-    # 3. 抓取情绪/资金数据
     fear_greed  = fetch_fear_greed()
     bond_spread = fetch_bond_spread()
     etf_flows   = fetch_etf_flows()
     put_call    = fetch_put_call()
     macro_cal   = build_macro_calendar()
 
-    # 4. 两阶段 AI 分析
-    filtered_articles = flash_filter_news(articles)                          # Flash 预过滤
-    analysis          = call_gemini_pro(build_news_prompt(filtered_articles, market_data))  # Pro 深度分析
+    filtered_articles = flash_filter_news(articles)
+    analysis          = call_gemini_pro(build_news_prompt(filtered_articles, market_data))
 
-    # 5. 提取AI信号，生成雷达表格
     ai_signals  = extract_ai_signals(analysis)
     radar_table = build_radar_table(market_data, ai_signals)
 
-    # 6. 组装完整早报
     report = f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📅 宏观数据日历（未来7天）
@@ -739,21 +727,17 @@ def run_morning():
 {radar_table}
 """
 
-    # 7. 推送 Discord
     header = (
         f"# 🌅 财经早报  {now_label}  |  {len(articles)}条新闻\n"
         f"> 🤖 Gemini 3.1 Pro · 宏观日历 + 情绪 + 资金流 + 标的追踪\n"
         f"{'━' * 40}"
     )
     send_discord(report, header)
-
-    # 8. 保存
     save_report(header + "\n" + report, "早报")
     log.info("✅ 早报完成")
 
 
 def run_evening():
-    """晚报：新闻简报"""
     now_label = datetime.now(tz=TZ).strftime("%Y-%m-%d %H:%M")
     log.info("🌙 运行晚报模式")
 
