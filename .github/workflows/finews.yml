@@ -14,6 +14,9 @@ jobs:
     steps:
       - name: 📥 拉取代码
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: 🐍 配置 Python
         uses: actions/setup-python@v5
@@ -42,12 +45,13 @@ jobs:
       - name: 📊 推送看板数据
         if: always()
         run: |
-          git config user.name "finews-bot"
-          git config user.email "bot@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main
           git add docs/data.json
           git diff --staged --quiet || git commit -m "chore: update dashboard"
-          git push
-
+          git push origin main
+          
       - name: 📤 上传分析报告
         if: always()
         uses: actions/upload-artifact@v4
