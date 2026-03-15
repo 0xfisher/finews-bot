@@ -341,12 +341,6 @@ def build_radar_table(market_data: dict, ai_signals: dict) -> str:
     lines += [
         "────────────────────────────────────────────────────────",
         "🟢偏多  🟡中性  🔴偏空  |  ⭐越多=越值得关注",
-        "",
-        "标的说明:",
-        "QQQ纳指ETF  NVDA英伟达  AAPL苹果  MSFT微软  TSLA特斯拉",
-        "GOOGL谷歌  PLTR Palantir  SOXL 3x芯片  YINN 3xA50",
-        "KSTR科创50  IAUM黄金  07709 2xHynix  CLMAIN原油",
-        "BTC比特币  ETH以太坊  USDCNH美元/人民币  USDMYR美元/马币",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
         "```",
     ]
@@ -479,7 +473,7 @@ def build_news_prompt(news_summary: str, market_data: dict = None) -> str:
 加密货币：BTC / ETH
 
 每个标的格式如下：
-标的名 [偏多/偏空/中性]
+标的名（中文名/当前价/52周位置） [偏多/偏空/中性]
 长线：一句话说对长期持有逻辑的影响
 短线：一句话说近期期权机会或风险，没有就写暂无明显催化剂
 
