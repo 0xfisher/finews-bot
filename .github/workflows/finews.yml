@@ -1,10 +1,12 @@
 name: 财经新闻 AI 日报
 
 on:
-  schedule:
-    - cron: '0 0 * * *'    # 北京时间 08:00（早报）
-    - cron: '0 12 * * *'   # 北京时间 20:00（晚报）
   workflow_dispatch:
+    inputs:
+      run_mode:
+        description: 'morning or evening'
+        required: false
+        default: 'morning'
 
 jobs:
   run-finbot:
@@ -21,12 +23,30 @@ jobs:
       - name: 📦 安装依赖
         run: pip install -r requirements.txt
 
-      - name: 🚀 运行财经机器人
+      - name: 🌅 早报
+        if: github.event.inputs.run_mode != 'evening'
         env:
           GEMINI_API_KEY:  ${{ secrets.GEMINI_API_KEY }}
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-          RUN_MODE: ${{ github.event_name == 'schedule' && github.event.schedule == '0 0 * * *' && 'morning' || github.event_name == 'schedule' && 'evening' || 'morning' }}
+          RUN_MODE: morning
         run: python finews_bot.py
+
+      - name: 🌙 晚报
+        if: github.event.inputs.run_mode == 'evening'
+        env:
+          GEMINI_API_KEY:  ${{ secrets.GEMINI_API_KEY }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          RUN_MODE: evening
+        run: python finews_bot.py
+
+      - name: 📊 推送看板数据
+        if: always()
+        run: |
+          git config user.name "finews-bot"
+          git config user.email "bot@github.com"
+          git add docs/data.json
+          git diff --staged --quiet || git commit -m "chore: update dashboard"
+          git push
 
       - name: 📤 上传分析报告
         if: always()
