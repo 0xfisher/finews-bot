@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>持仓雷达 · Portfolio Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #111118;
+    --bg3: #1a1a24;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #f0f0f5;
+    --text2: #8888a0;
+    --text3: #555568;
+    --green: #00d48c;
+    --green-bg: rgba(0,212,140,0.08);
+    --red: #ff5252;
+    --red-bg: rgba(255,82,82,0.08);
+    --amber: #ffb930;
+    --amber-bg: rgba(255,185,48,0.08);
+    --blue: #4d9fff;
+    --blue-bg: rgba(77,159,255,0.08);
+    --accent: #7b5ea7;
+    --font-display: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(123,94,167,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(123,94,167,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-left h1 {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+
+  .header-left h1 span {
+    color: var(--accent);
+  }
+
+  .header-left .subtitle {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 4px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .header-right {
+    text-align: right;
+  }
+
+  .updated-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 11px;
+    color: var(--text2);
+  }
+
+  .updated-badge::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Macro metrics row */
+  .macro-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 10px;
+    margin-bottom: 2rem;
+  }
+
+  .macro-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    transition: border-color 0.2s;
+  }
+
+  .macro-card:hover { border-color: var(--border2); }
+
+  .macro-card .label {
+    font-size: 10px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+
+  .macro-card .value {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .macro-card .sub {
+    font-size: 11px;
+    margin-top: 4px;
+  }
+
+  /* Section labels */
+  .section-label {
+    font-size: 10px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Ticker grid */
+  .ticker-grid {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0,1fr));
+    gap: 8px;
+    margin-bottom: 2rem;
+  }
+
+  .ticker-grid.four-col {
+    grid-template-columns: repeat(4, minmax(0,1fr));
+  }
+
+  .ticker-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 12px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s;
+    cursor: default;
+  }
+
+  .ticker-card:hover {
+    border-color: var(--border2);
+    transform: translateY(-1px);
+  }
+
+  .ticker-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    border-radius: 10px 10px 0 0;
+  }
+
+  .ticker-card.long::before { background: var(--green); }
+  .ticker-card.short::before { background: var(--red); }
+  .ticker-card.neutral::before { background: var(--border2); }
+
+  .ticker-symbol {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 1px;
+  }
+
+  .ticker-name {
+    font-size: 10px;
+    color: var(--text3);
+    margin-bottom: 10px;
+  }
+
+  .ticker-price {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .signal-tag {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-top: 6px;
+    margin-bottom: 8px;
+  }
+
+  .tag-long { background: var(--green-bg); color: var(--green); }
+  .tag-short { background: var(--red-bg); color: var(--red); }
+  .tag-neutral { background: var(--bg3); color: var(--text3); }
+
+  .pos-bar-wrap { margin-top: 4px; }
+
+  .pos-bar-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: var(--text3);
+    margin-bottom: 4px;
+  }
+
+  .pos-bar {
+    height: 3px;
+    background: var(--bg3);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .pos-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .stars-row {
+    margin-top: 6px;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--amber);
+  }
+
+  /* Bottom panels */
+  .bottom-panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 2rem;
+  }
+
+  .panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+
+  .panel-title {
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 14px;
+  }
+
+  /* Options table */
+  .options-table { width: 100%; border-collapse: collapse; }
+  .options-table th {
+    font-size: 9px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0 0 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+  }
+  .options-table td {
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text);
+  }
+  .options-table tr:last-child td { border-bottom: none; }
+
+  .pc-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+
+  /* Macro calendar */
+  .cal-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .cal-item:last-child { border-bottom: none; }
+
+  .cal-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+
+  .cal-date {
+    font-size: 10px;
+    color: var(--text3);
+    font-family: var(--font-mono);
+  }
+
+  .cal-event {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  /* Analysis panel */
+  .analysis-text {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.8;
+    white-space: pre-wrap;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+
+  .analysis-text::-webkit-scrollbar { width: 3px; }
+  .analysis-text::-webkit-scrollbar-track { background: transparent; }
+  .analysis-text::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* Loading state */
+  .loading {
+    text-align: center;
+    padding: 4rem;
+    color: var(--text3);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+  }
+
+  .loading::after {
+    content: '';
+    display: block;
+    width: 24px; height: 24px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    margin: 1rem auto 0;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Fade in cards */
+  .ticker-card {
+    animation: fadeUp 0.4s ease both;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 1200px) {
+    .ticker-grid { grid-template-columns: repeat(4, minmax(0,1fr)); }
+  }
+  @media (max-width: 768px) {
+    .macro-row { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .ticker-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .bottom-panels { grid-template-columns: 1fr; }
+    .header { flex-direction: column; gap: 1rem; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div id="app"><div class="loading">Loading dashboard data</div></div>
+</div>
+
+<script>
+const SIGNAL_CLASS = { '🟢 偏多': 'long', '🔴 偏空': 'short', '🟡 中性': 'neutral' };
+const SIGNAL_LABEL = { '🟢 偏多': '偏多 LONG', '🔴 偏空': '偏空 SHORT', '🟡 中性': '中性 NEUTRAL' };
+
+function barColor(pct) {
+  if (pct <= 30) return '#00d48c';
+  if (pct <= 65) return '#ffb930';
+  return '#ff5252';
+}
+
+function starsHTML(n) {
+  return '★'.repeat(n) + '<span style="color:var(--text3)">★</span>'.repeat(5 - n);
+}
+
+function renderMacroCard(label, value, sub, subColor) {
+  return `<div class="macro-card">
+    <div class="label">${label}</div>
+    <div class="value">${value}</div>
+    <div class="sub" style="color:${subColor||'var(--text2)'}">${sub}</div>
+  </div>`;
+}
+
+function renderTickerCard(sym, t, idx) {
+  const sigClass = SIGNAL_CLASS[t.signal] || 'neutral';
+  const sigLabel = SIGNAL_LABEL[t.signal] || '中性 NEUTRAL';
+  const pct = t.pos_pct || 0;
+  const delay = (idx % 8) * 0.04;
+  return `<div class="ticker-card ${sigClass}" style="animation-delay:${delay}s">
+    <div class="ticker-symbol">${sym}</div>
+    <div class="ticker-name">${t.name}</div>
+    <div class="ticker-price">${t.price}</div>
+    <div><span class="signal-tag tag-${sigClass}">${sigLabel}</span></div>
+    <div class="pos-bar-wrap">
+      <div class="pos-bar-meta"><span>52W位置</span><span>${pct}%</span></div>
+      <div class="pos-bar"><div class="pos-fill" style="width:${pct}%;background:${barColor(pct)}"></div></div>
+    </div>
+    <div class="stars-row">${starsHTML(t.stars)}</div>
+  </div>`;
+}
+
+const TECH = ['QQQ','NVDA','AAPL','MSFT','TSLA','GOOGL','PLTR','SOXL'];
+const MULTI = ['YINN','07709','KSTR','IAUM','CLMAIN','BTC','ETH','USDCNH','USDMYR'];
+
+const OPTIONS = [
+  {sym:'QQQ', ratio:0.89}, {sym:'NVDA', ratio:0.50},
+  {sym:'TSLA', ratio:0.62}, {sym:'AAPL', ratio:0.41},
+  {sym:'MSFT', ratio:0.46}, {sym:'GOOGL', ratio:0.55},
+  {sym:'PLTR', ratio:0.95}, {sym:'SOXL', ratio:1.08},
+];
+
+const MACRO_EVENTS = [
+  {date:'03/18', event:'美联储利率决议', high:true},
+  {date:'03/19', event:'日本央行利率决议', high:false},
+  {date:'03/20', event:'美国初请失业金人数', high:false},
+  {date:'03/28', event:'美国PCE通胀数据', high:true},
+  {date:'03/31', event:'中国官方PMI', high:false},
+  {date:'04/02', event:'美国非农就业数据', high:true},
+];
+
+function renderOptionsTable(data) {
+  const rows = data.map(o => {
+    const bull = o.ratio < 0.8;
+    const bear = o.ratio > 1.1;
+    const color = bull ? 'var(--green)' : bear ? 'var(--red)' : 'var(--text3)';
+    const label = bull ? '偏乐观' : bear ? '偏悲观' : '中性';
+    return `<tr>
+      <td style="font-weight:500">${o.sym}</td>
+      <td style="color:var(--text2)">${o.ratio.toFixed(2)}</td>
+      <td><span class="pc-dot" style="background:${color}"></span><span style="color:${color}">${label}</span></td>
+    </tr>`;
+  }).join('');
+  return `<table class="options-table">
+    <thead><tr><th>标的</th><th>P/C</th><th>情绪</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function renderCalendar(events) {
+  return events.map(e => `<div class="cal-item">
+    <div class="cal-dot" style="background:${e.high?'var(--red)':'var(--amber)'}"></div>
+    <div>
+      <div class="cal-date">${e.date}</div>
+      <div class="cal-event">${e.event}</div>
+    </div>
+  </div>`).join('');
+}
+
+function render(data) {
+  const t = data.tickers || {};
+  const fearColor = parseInt(data.fear_greed) < 30 ? 'var(--red)' : parseInt(data.fear_greed) > 60 ? 'var(--green)' : 'var(--amber)';
+
+  const techCards = TECH.map((sym,i) => t[sym] ? renderTickerCard(sym, t[sym], i) : '').join('');
+  const multiCards = MULTI.map((sym,i) => t[sym] ? renderTickerCard(sym, t[sym], i) : '').join('');
+
+  document.getElementById('app').innerHTML = `
+    <div class="header">
+      <div class="header-left">
+        <h1>Portfolio <span>Radar</span></h1>
+        <div class="subtitle">AI-Powered · Daily Market Intelligence</div>
+      </div>
+      <div class="header-right">
+        <div class="updated-badge">Last updated · ${data.updated || '--'}</div>
+      </div>
+    </div>
+
+    <div class="macro-row">
+      ${renderMacroCard('恐惧贪婪指数', data.fear_greed || '--', '加密市场情绪', fearColor)}
+      ${renderMacroCard('美债收益率', data.bond_spread ? data.bond_spread.split('|')[0].replace(/[^0-9.%]/g,'').trim() + '%' : '--', data.bond_spread || '--', 'var(--blue)')}
+      ${renderMacroCard('BTC', t.BTC?.price || '--', t.BTC?.position || '--', barColor(t.BTC?.pos_pct||50))}
+      ${renderMacroCard('ETH', t.ETH?.price || '--', t.ETH?.position || '--', barColor(t.ETH?.pos_pct||50))}
+    </div>
+
+    <div class="section-label">美股科技 · US Tech</div>
+    <div class="ticker-grid" id="tech-grid">${techCards}</div>
+
+    <div class="section-label">多元资产 · Multi Asset</div>
+    <div class="ticker-grid four-col" id="multi-grid">${multiCards}</div>
+
+    <div class="bottom-panels">
+      <div class="panel">
+        <div class="panel-title">期权情绪 · Put/Call</div>
+        ${renderOptionsTable(OPTIONS)}
+      </div>
+      <div class="panel">
+        <div class="panel-title">宏观日历 · Macro Events</div>
+        ${renderCalendar(MACRO_EVENTS)}
+      </div>
+      <div class="panel">
+        <div class="panel-title">AI 分析摘要</div>
+        <div class="analysis-text">${data.analysis_summary || '暂无分析数据'}</div>
+      </div>
+    </div>
+  `;
+}
+
+fetch('./data.json?t=' + Date.now())
+  .then(r => r.json())
+  .then(render)
+  .catch(() => {
+    document.getElementById('app').innerHTML = `
+      <div class="loading" style="color:var(--text2)">
+        暂无数据 · 等待机器人首次运行后自动更新
+      </div>`;
+  });
+</script>
+</body>
+</html>
