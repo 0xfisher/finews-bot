@@ -18,7 +18,8 @@ import time
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-import feedparser
+import email.utils
+import xml.etree.ElementTree as ET
 import requests
 import yfinance as yf
 
@@ -165,43 +166,103 @@ def fetch_market_data() -> dict:
     return result
 
 
+def _parse_rss_date(date_str: str):
+    """解析 RFC 2822 或 ISO 8601 日期字符串，返回 UTC datetime 或 None"""
+    if not date_str:
+        return None
+    # RFC 2822 (Mon, 16 Mar 2026 07:00:00 +0000)
+    try:
+        t = email.utils.parsedate_to_datetime(date_str)
+        return t.astimezone(timezone.utc)
+    except Exception:
+        pass
+    # ISO 8601 subset
+    for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S+00:00", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(date_str[:19], fmt).replace(tzinfo=timezone.utc)
+        except Exception:
+            pass
+    return None
+
+
 def fetch_news() -> list[dict]:
     log.info("📡 抓取 RSS 新闻...")
     cutoff    = datetime.now(tz=timezone.utc) - timedelta(hours=FETCH_HOURS)
     articles  = []
     seen_urls: set = set()
+    headers   = {"User-Agent": "Mozilla/5.0"}
+
+    # RSS/Atom 命名空间
+    NS = {
+        "atom":    "http://www.w3.org/2005/Atom",
+        "content": "http://purl.org/rss/1.0/modules/content/",
+        "media":   "http://search.yahoo.com/mrss/",
+    }
+
+    def _text(el):
+        return (el.text or "").strip() if el is not None else ""
+
+    def _find_text(item, *tags):
+        for tag in tags:
+            el = item.find(tag)
+            if el is not None and el.text:
+                return el.text.strip()
+        return ""
 
     for source_name, feed_url in RSS_FEEDS.items():
         try:
-            feed  = feedparser.parse(feed_url, request_headers={"User-Agent": "Mozilla/5.0"})
+            resp = requests.get(feed_url, headers=headers, timeout=10)
+            resp.raise_for_status()
+            root = ET.fromstring(resp.content)
+
+            # 判断是 RSS 还是 Atom
+            is_atom = "atom" in root.tag.lower() or root.tag.startswith("{http://www.w3.org/2005/Atom}")
+            if is_atom:
+                items = root.findall("{http://www.w3.org/2005/Atom}entry")
+            else:
+                channel = root.find("channel")
+                items   = (channel or root).findall("item")
+
             count = 0
-            for entry in feed.entries:
+            for item in items:
                 if count >= NEWS_PER_FEED:
                     break
-                title = entry.get("title", "").strip()
-                url   = entry.get("link", "").strip()
+
+                if is_atom:
+                    title = _text(item.find("{http://www.w3.org/2005/Atom}title"))
+                    link_el = item.find("{http://www.w3.org/2005/Atom}link")
+                    url = (link_el.get("href") or "").strip() if link_el is not None else ""
+                    date_str = _text(item.find("{http://www.w3.org/2005/Atom}updated")) or \
+                               _text(item.find("{http://www.w3.org/2005/Atom}published"))
+                    summary = _text(item.find("{http://www.w3.org/2005/Atom}summary")) or \
+                              _text(item.find("{http://www.w3.org/2005/Atom}content"))
+                else:
+                    title    = _find_text(item, "title")
+                    url      = _find_text(item, "link")
+                    date_str = _find_text(item, "pubDate", "dc:date", "updated")
+                    summary  = _find_text(item, "description", "summary",
+                                          f"{{{NS['content']}}}encoded")
+
+                title = title.strip()
+                url   = url.strip()
                 if not title or not url or url in seen_urls:
                     continue
-                pub = None
-                for attr in ("published_parsed", "updated_parsed"):
-                    if hasattr(entry, attr) and getattr(entry, attr):
-                        try:
-                            pub = datetime(*getattr(entry, attr)[:6], tzinfo=timezone.utc)
-                            break
-                        except Exception:
-                            pass
+
+                pub = _parse_rss_date(date_str)
                 if pub and pub < cutoff:
                     continue
+
                 seen_urls.add(url)
-                summary = re.sub(r"<[^>]+>", "", entry.get("summary", ""))[:400].strip()
+                summary_clean = re.sub(r"<[^>]+>", "", summary)[:400].strip()
                 articles.append({
                     "source":    source_name,
                     "title":     title,
                     "url":       url,
-                    "summary":   summary,
+                    "summary":   summary_clean,
                     "published": pub.astimezone(TZ).strftime("%Y-%m-%d %H:%M") if pub else None,
                 })
                 count += 1
+
         except Exception as e:
             log.warning(f"  ⚠️ {source_name} 失败: {e}")
 
