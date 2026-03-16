@@ -1,7 +1,161 @@
 {
-  "updated": "等待首次运行",
-  "fear_greed": "--",
-  "bond_spread": "--",
-  "analysis_summary": "机器人尚未运行，数据将在下次早报后自动更新。",
-  "tickers": {}
+  "updated": "2026-03-16 08:02",
+  "fear_greed": "😱 23/100（极度恐惧）",
+  "bond_spread": "🟢 10Y 4.28% | 利差 +3.92% 正常（经济预期乐观）",
+  "analysis_summary": "第一层：今天市场在讲什么故事\n\n今天市场的主线就两个字：滞胀。中东那边伊朗打仗把原油价格逼近了100美元，直接把市场的通胀预期打起来了，导致大家开始害怕这周三美联储不但不降息，甚至可能重新加息。美债收益率跟着狂飙，这对所有风险资产（特别是科技股和加密货币）都是个大考。另一条暗线是AI的尽头是能源，科技巨头们不仅在拼算力，还在疯狂抢核电和电网资源，算力基建的投资逻辑正在向能源基建延伸。\n\n第二层：关注标的表现\n\nQQQ（纳指ETF/593.72美元/高位81%） [偏空]\n长线：AI基本面依然强劲，但高利率环境对整体估值有压制，长期持有逻辑不变但需忍受阵痛。\n短线：周三美联储决议是巨大风险点，如果鲍威尔放鹰科技股会首当其冲，可以考虑买入短期看跌期权做对冲。\n\nNVDA（英伟达/180.25美元/高位76%） [偏多]\n长线：GTC大会和360亿美元的生态投入说明它还在绝对统治期，护城河越来越深，长线底仓拿死。\n短线：GTC大会是明确的事件驱动，市场在等企业级AI平台的新故事，可以利用大会前后的高隐含波动率做卖出宽跨式期权吃时间价值。\n\nAAPL（苹果/250.12美元/中位68%） [中性]\n长线：今天没有直接新闻，但在高通胀和消费可能受挤压的背景下，硬件销售可能承压，长线继续看它的AI端侧落地情况。\n短线：暂无明显催化剂，随大盘波动。\n\nMSFT（微软/395.55美元/低位23%） [中性]\n长线：处于52周低位区间，作为AI软件端变现最稳的公司，现在的价格对长线资金很有吸引力，加分。\n短线：暂无明显催化剂，但如果大盘因加息预期回调，是个逢低卖出看跌期权接盘的好机会。\n\nTSLA（特斯拉/391.20美元/中位63%） [偏多]\n长线：马斯克搞自研AI芯片和无人驾驶出租车，说明特斯拉正在彻底从车企向AI和机器人公司转型，长线逻辑极大加强。\n短线：3月21日Terafab项",
+  "tickers": {
+    "QQQ": {
+      "name": "纳指ETF",
+      "price": "$593.72",
+      "position": "高位 81%",
+      "pos_pct": 81,
+      "stars": 1,
+      "signal": "🔴 偏空",
+      "earnings": "—"
+    },
+    "NVDA": {
+      "name": "英伟达",
+      "price": "$180.25",
+      "position": "高位 76%",
+      "pos_pct": 76,
+      "stars": 1,
+      "signal": "🟢 偏多",
+      "earnings": "—"
+    },
+    "AAPL": {
+      "name": "苹果",
+      "price": "$250.12",
+      "position": "中位 68%",
+      "pos_pct": 68,
+      "stars": 2,
+      "signal": "🟡 中性",
+      "earnings": "—"
+    },
+    "MSFT": {
+      "name": "微软",
+      "price": "$395.55",
+      "position": "低位 23%",
+      "pos_pct": 23,
+      "stars": 4,
+      "signal": "🟡 中性",
+      "earnings": "—"
+    },
+    "TSLA": {
+      "name": "特斯拉",
+      "price": "$391.20",
+      "position": "中位 63%",
+      "pos_pct": 63,
+      "stars": 2,
+      "signal": "🟢 偏多",
+      "earnings": "—"
+    },
+    "GOOGL": {
+      "name": "谷歌",
+      "price": "$302.28",
+      "position": "高位 79%",
+      "pos_pct": 79,
+      "stars": 1,
+      "signal": "🟢 偏多",
+      "earnings": "—"
+    },
+    "PLTR": {
+      "name": "Palantir",
+      "price": "$150.95",
+      "position": "中位 57%",
+      "pos_pct": 57,
+      "stars": 2,
+      "signal": "🟢 偏多",
+      "earnings": "—"
+    },
+    "SOXL": {
+      "name": "3x芯片ETF",
+      "price": "$50.72",
+      "position": "中位 66%",
+      "pos_pct": 66,
+      "stars": 2,
+      "signal": "🟢 偏多",
+      "earnings": "—"
+    },
+    "YINN": {
+      "name": "3xA50ETF",
+      "price": "$34.41",
+      "position": "中位 35%",
+      "pos_pct": 35,
+      "stars": 4,
+      "signal": "🟡 中性",
+      "earnings": "—"
+    },
+    "KSTR": {
+      "name": "科创50ETF",
+      "price": "$19.30",
+      "position": "高位 73%",
+      "pos_pct": 73,
+      "stars": 2,
+      "signal": "🟢 偏多",
+      "earnings": "—"
+    },
+    "IAUM": {
+      "name": "黄金ETF",
+      "price": "$49.99",
+      "position": "高位 84%",
+      "pos_pct": 84,
+      "stars": 1,
+      "signal": "🔴 偏空",
+      "earnings": "—"
+    },
+    "07709": {
+      "name": "2xHynix",
+      "price": "$26.40",
+      "position": "中位 51%",
+      "pos_pct": 51,
+      "stars": 3,
+      "signal": "🟢 偏多",
+      "earnings": "—"
+    },
+    "CLMAIN": {
+      "name": "原油",
+      "price": "$98.75",
+      "position": "高位 100%",
+      "pos_pct": 100,
+      "stars": 1,
+      "signal": "🟢 偏多",
+      "earnings": "—"
+    },
+    "BTC": {
+      "name": "比特币",
+      "price": "$72,779",
+      "position": "低位 16%",
+      "pos_pct": 16,
+      "stars": 5,
+      "signal": "🔴 偏空",
+      "earnings": "—"
+    },
+    "ETH": {
+      "name": "以太坊",
+      "price": "$2,177",
+      "position": "低位 20%",
+      "pos_pct": 20,
+      "stars": 5,
+      "signal": "🔴 偏空",
+      "earnings": "—"
+    },
+    "USDCNH": {
+      "name": "美元/人民币",
+      "price": "$6.902",
+      "position": "中位 50%",
+      "pos_pct": 50,
+      "stars": 3,
+      "signal": "🟢 偏多",
+      "earnings": "—"
+    },
+    "USDMYR": {
+      "name": "美元/马币",
+      "price": "$3.930",
+      "position": "低位 7%",
+      "pos_pct": 7,
+      "stars": 5,
+      "signal": "🟢 偏多",
+      "earnings": "—"
+    }
+  }
 }
