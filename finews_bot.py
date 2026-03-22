@@ -188,10 +188,13 @@ def fetch_market_data() -> dict:
             if hist.empty:
                 continue
 
-            # 用小时线取最新价，避免晚上拿到旧收盘价
-            hist_1h = tk.history(period="5d", interval="1h")
+            # 用 download 含盘前盘后数据，早晚都准确
+            hist_1h = yf.download(
+                info["ticker"], period="2d", interval="1h",
+                prepost=True, progress=False, auto_adjust=True
+            )
             if not hist_1h.empty:
-                current = float(hist_1h["Close"].iloc[-1])
+                current = float(hist_1h["Close"].iloc[-1].item())
             else:
                 current = float(tk.fast_info.last_price)
 
