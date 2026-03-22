@@ -183,22 +183,25 @@ def fetch_market_data() -> dict:
     data = {}
     for symbol, info in TICKERS.items():
         try:
-            tk        = yf.Ticker(info["ticker"])
-            hist      = tk.history(period="1y")
-            fast_info = tk.fast_info
+            tk   = yf.Ticker(info["ticker"])
+            hist = tk.history(period="1y")
             if hist.empty:
                 continue
-            current  = fast_info.last_price
+
+            # 用小时线取最新价，避免晚上拿到旧收盘价
+            hist_1h = tk.history(period="5d", interval="1h")
+            if not hist_1h.empty:
+                current = float(hist_1h["Close"].iloc[-1])
+            else:
+                current = float(tk.fast_info.last_price)
+
             high_52w = hist["Close"].max()
             low_52w  = hist["Close"].min()
             position = int((current - low_52w) / (high_52w - low_52w) * 100) if high_52w != low_52w else 50
 
-            if position <= 30:
-                pos_label = f"低位 {position}%"
-            elif position <= 70:
-                pos_label = f"中位 {position}%"
-            else:
-                pos_label = f"高位 {position}%"
+            if position <= 30:   pos_label = f"低位 {position}%"
+            elif position <= 70: pos_label = f"中位 {position}%"
+            else:                pos_label = f"高位 {position}%"
 
             if position <= 20:   stars = "⭐⭐⭐⭐⭐"
             elif position <= 35: stars = "⭐⭐⭐⭐"
@@ -340,13 +343,6 @@ def build_radar_table(market_data: dict, ai_signals: dict) -> str:
         lines.append("")
     lines += [
         "────────────────────────────────────────────────────────",
-        "🟢偏多  🟡中性  🔴偏空  |  ⭐越多=越值得关注",
-        "",
-        "标的说明:",
-        "QQQ纳指ETF  NVDA英伟达  AAPL苹果  MSFT微软  TSLA特斯拉",
-        "GOOGL谷歌  PLTR Palantir  SOXL 3x芯片  YINN 3xA50",
-        "KSTR科创50  IAUM黄金  07709 2xHynix  CLMAIN原油",
-        "BTC比特币  ETH以太坊  USDCNH美元/人民币  USDMYR美元/马币",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
         "```",
     ]
@@ -430,22 +426,34 @@ def flash_summarize_news(articles: list[dict]) -> str:
 新闻列表：
 {news_block}"""
 
-    try:
-        client   = genai.Client(api_key=GEMINI_API_KEY)
-        response = client.models.generate_content(
-            model="gemini-3-flash-preview",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.1,
-                max_output_tokens=4000,
-            ),
-        )
-        result = response.text.strip()
-        log.info(f"⚡ Flash 浓缩完成，输出约 {len(result)} 字")
-        return result
-    except Exception as e:
-        log.warning(f"⚠️ Flash 浓缩失败，使用原始标题: {e}")
-        return "\n".join([f"[{a['source']}] {a['title']}" for a in articles])
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    for attempt in range(60):
+        try:
+            response = client.models.generate_content(
+                model="gemini-3-flash-preview",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.1,
+                    max_output_tokens=4000,
+                ),
+            )
+            result = response.text.strip()
+            log.info(f"⚡ Flash 浓缩完成，输出约 {len(result)} 字")
+            return result
+        except Exception as e:
+            err_str = str(e)
+            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "503" in err_str or "UNAVAILABLE" in err_str:
+                if attempt < 59:
+                    log.warning(f"⚠️ Flash 暂时不可用，5分钟后重试（第{attempt+1}/60次）...")
+                    time.sleep(300)
+                else:
+                    log.warning("⚠️ Flash 重试5小时仍失败，使用原始标题")
+                    return "\n".join([f"[{a['source']}] {a['title']}" for a in articles])
+            else:
+                log.warning(f"⚠️ Flash 浓缩失败，使用原始标题: {e}")
+                return "\n".join([f"[{a['source']}] {a['title']}" for a in articles])
+
+    return "\n".join([f"[{a['source']}] {a['title']}" for a in articles])
 
 
 def build_news_prompt(news_summary: str, market_data: dict = None) -> str:
@@ -479,7 +487,7 @@ def build_news_prompt(news_summary: str, market_data: dict = None) -> str:
 加密货币：BTC / ETH
 
 每个标的格式如下：
-标的名 [偏多/偏空/中性]
+标的名（中文名/当前价/52周位置） [偏多/偏空/中性]
 长线：一句话说对长期持有逻辑的影响
 短线：一句话说近期期权机会或风险，没有就写暂无明显催化剂
 
@@ -512,7 +520,7 @@ def extract_ai_signals(analysis_text: str) -> dict:
 def call_gemini_pro(prompt: str) -> str:
     log.info("🧠 Pro 深度分析...")
     time.sleep(15)
-    for attempt in range(3):
+    for attempt in range(60):    # 最多60次，每次5分钟 = 5小时
         try:
             client   = genai.Client(api_key=GEMINI_API_KEY)
             response = client.models.generate_content(
@@ -528,19 +536,18 @@ def call_gemini_pro(prompt: str) -> str:
             return response.text
         except Exception as e:
             err_str = str(e)
-            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-                if attempt < 2:
-                    wait = 60 * (attempt + 2)
-                    log.warning(f"⚠️ 频率限制，{wait}秒后重试（第{attempt+1}次）...")
-                    time.sleep(wait)
+            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "503" in err_str or "UNAVAILABLE" in err_str:
+                if attempt < 59:
+                    log.warning(f"⚠️ Gemini 暂时不可用，5分钟后重试（第{attempt+1}/60次）...")
+                    time.sleep(300)
                 else:
-                    return "⚠️ Gemini Pro API 频率超限，请稍后重新运行。"
+                    return "⚠️ Gemini 重试5小时仍失败，请检查服务状态。"
             elif "404" in err_str or "NOT_FOUND" in err_str:
                 return "⚠️ 模型不可用，请检查模型名称。"
             else:
                 log.error(f"❌ Gemini 错误: {e}")
                 return f"⚠️ AI 分析失败：{err_str[:120]}"
-    return "⚠️ 多次重试失败，请稍后再运行。"
+    return "⚠️ 重试超时，请手动触发。"
 
 # ════════════════════════════════════════════════════════
 # ❾ Discord 推送
@@ -643,7 +650,7 @@ def run_morning():
         f"{'━' * 40}"
     )
     send_discord(report, header)
-    _discord_send(radar_table)  # 雷达表格单独发送确保渲染正确
+    _discord_send(radar_table)
     save_report(header + "\n" + report + "\n" + radar_table, "早报")
     log.info("✅ 早报完成")
 
